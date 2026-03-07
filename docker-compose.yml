@@ -1,0 +1,25 @@
+services:
+  cloud-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: cloud_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  cloud-backend:
+    build: ./netology-diplom-backend-java
+    depends_on:
+      - cloud-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://cloud-db:5432/cloud_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:

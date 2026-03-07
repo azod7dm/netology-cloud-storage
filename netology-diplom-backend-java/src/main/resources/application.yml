@@ -1,0 +1,19 @@
+spring:
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+  security:
+    user:
+      name: testuser
+      password: password
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+  jpa:
+    hibernate:
+      ddl-auto: validate  # ← проверяет схему, но не создаёт
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+server:
+  address: 0.0.0.0
