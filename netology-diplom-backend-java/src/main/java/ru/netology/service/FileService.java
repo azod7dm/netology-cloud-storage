@@ -1,90 +1,72 @@
 package ru.netology.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.transaction.annotation.Transactional;
+import ru.netology.entity.File;
+import ru.netology.repository.FileRepository;
 
-import jakarta.annotation.PostConstruct;
-import ru.netology.dto.FileInfo;
-import ru.netology.model.CloudFile;
-import ru.netology.repository.CloudFileRepository;
-import ru.netology.service.AuthService;
-
-import java.io.IOException;
-import java.nio.file.*;
+import java.util.List;
+import java.util.Map;
 
 @Service
-@Lazy
 public class FileService {
 
-    @Value("${app.file-storage-path:./uploads}")
-    private String storagePath;
+    private final FileRepository fileRepository;
+    private final Map<String, byte[]> fileStorage = new java.util.HashMap<>();
 
-    private final CloudFileRepository fileRepository;
-    private final AuthService authService;
-
-    public FileService(CloudFileRepository fileRepository, AuthService authService) {
+    public FileService(FileRepository fileRepository) {
         this.fileRepository = fileRepository;
-        this.authService = authService;
     }
 
-    @PostConstruct
-    public void init() {
-        try {
-            Path path = Paths.get(storagePath).toAbsolutePath().normalize();
-            Files.createDirectories(path);
-            System.out.println("Папка хранилища создана: " + path);
-        } catch (IOException e) {
-            throw new RuntimeException("Не удалось создать папку хранилища: " + storagePath, e);
+    public List<File> listFiles(String ownerLogin, int limit) {
+        return fileRepository.findByOwnerLogin(ownerLogin)
+                .stream().limit(limit).toList();
+    }
+
+    public void uploadFile(String filename, byte[] content, String ownerLogin) {
+        fileStorage.put(filename, content);
+
+        File dbFile = new File();
+        dbFile.setFilename(filename);
+        dbFile.setSize((long) content.length);
+        dbFile.setOwnerLogin(ownerLogin);
+        fileRepository.save(dbFile);
+    }
+
+    @Transactional
+    public void deleteFile(String filename, String ownerLogin) {
+        fileRepository.deleteByFilenameAndOwnerLogin(filename, ownerLogin);
+        fileStorage.remove(filename);
+    }
+
+    @Transactional
+    public void renameFile(String oldName, String newName, String ownerLogin) {
+        File file = fileRepository.findByFilenameAndOwnerLogin(oldName, ownerLogin);
+        if (file == null) {
+            throw new RuntimeException("File not found");
         }
-    }
 
-    public List<FileInfo> listFiles(String token) {
-        if (!authService.isTokenValid(token)) return null;
-        String login = authService.getLoginByToken(token);
-        return fileRepository.findByOwnerLogin(login).stream()
-                .map(file -> new FileInfo(file.getFilename(), file.getSize()))
-                .collect(Collectors.toList());
-    }
+        if (fileRepository.findByFilenameAndOwnerLogin(newName, ownerLogin) != null) {
+            throw new RuntimeException("File with name '" + newName + "' already exists");
+        }
 
-    public void saveFile(String token, String filename, byte[] content) throws IOException {
-        if (!authService.isTokenValid(token)) return;
-        String login = authService.getLoginByToken(token);
+        byte[] content = fileStorage.get(oldName);
+        if (content == null) {
+            throw new RuntimeException("Failed to read file content");
+        }
 
-        Path filePath = Paths.get(storagePath, login, filename);
-        Files.createDirectories(filePath.getParent());
-        Files.write(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        fileStorage.put(newName, content);
+        fileStorage.remove(oldName);
 
-        CloudFile file = new CloudFile();
-        file.setOwnerLogin(login);
-        file.setFilename(filename);
-        file.setSize((long) content.length);
-        file.setUploadDate(java.time.LocalDateTime.now());
+        file.setFilename(newName);
         fileRepository.save(file);
     }
 
-    public byte[] getFile(String token, String filename) throws IOException {
-        if (!authService.isTokenValid(token)) return null;
-        String login = authService.getLoginByToken(token);
-
-        Path filePath = Paths.get(storagePath, login, filename);
-        if (Files.exists(filePath)) {
-            return Files.readAllBytes(filePath);
+    public byte[] getFileContent(String filename, String ownerLogin) {
+        File file = fileRepository.findByFilenameAndOwnerLogin(filename, ownerLogin);
+        if (file == null) {
+            throw new RuntimeException("File not found");
         }
-        return null;
-    }
-
-    public void deleteFile(String token, String filename) throws IOException {
-        if (!authService.isTokenValid(token)) return;
-        String login = authService.getLoginByToken(token);
-
-        Path filePath = Paths.get(storagePath, login, filename);
-        if (Files.exists(filePath)) {
-            Files.delete(filePath);
-        }
-        fileRepository.deleteByOwnerLoginAndFilename(login, filename);
+        return fileStorage.get(filename);
     }
 }

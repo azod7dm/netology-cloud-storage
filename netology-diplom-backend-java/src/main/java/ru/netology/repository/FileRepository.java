@@ -10,4 +10,5 @@ import java.util.List;
 public interface FileRepository extends JpaRepository<File, String> {
     List<File> findByOwnerLogin(String ownerLogin);
     File findByFilenameAndOwnerLogin(String filename, String ownerLogin);
+    void deleteByFilenameAndOwnerLogin(String filename, String ownerLogin);
 }
