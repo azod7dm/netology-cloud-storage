@@ -1,0 +1,20 @@
+Response: Both 'filename' and 'newname' are required
+И заголовки Response b Request:
+HTTP/1.1 400
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: http://localhost:8081
+Access-Control-Allow-Credentials: true
+Content-Type: application/json
+Content-Length: 42
+Date: Wed, 04 Mar 2026 19:08:35 GMT
+Connection: close
+Логи docker-compose:
+cloud-backend-1  | 2026-03-04T19:06:47.947Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
+cloud-backend-1  | 2026-03-04T19:06:48.034Z  INFO 1 --- [           main] ru.netology.CloudStorageApplication      : Started CloudStorageApplication in 30.492 seconds (process running for 34.035)
+cloud-backend-1  | 2026-03-04T19:08:14.187Z  INFO 1 --- [0.0-8080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+cloud-backend-1  | 2026-03-04T19:08:14.203Z  INFO 1 --- [0.0-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+cloud-backend-1  | 2026-03-04T19:08:14.299Z  INFO 1 --- [0.0-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 87 ms
+cloud-db-1       | 2026-03-04 19:11:38.704 UTC [61] LOG:  checkpoint starting: time
+cloud-db-1       | 2026-03-04 19:11:56.707 UTC [61] LOG:  checkpoint complete: wrote 108 buffers (0.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=17.930 s, sync=0.036 s, total=18.004 s; sync files=63, longest=0.007 s, average=0.001 s; distance=399 kB, estimate=399 kB

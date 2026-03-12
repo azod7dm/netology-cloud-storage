@@ -1,3 +1,6 @@
+app:
+  file-storage-path: ./storage
+
 spring:
   jackson:
     deserialization:
@@ -13,7 +16,8 @@ spring:
       data-locations: classpath:data.sql
   jpa:
     hibernate:
-      ddl-auto: validate  # ← проверяет схему, но не создаёт
+      ddl-auto: create
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+
 server:
   address: 0.0.0.0

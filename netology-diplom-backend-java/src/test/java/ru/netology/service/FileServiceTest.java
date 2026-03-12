@@ -1,17 +1,23 @@
 package ru.netology.service;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.netology.entity.File;
 import ru.netology.repository.FileRepository;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+
+// Добавьте эти импорты ↓↓↓
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 
 @ExtendWith(MockitoExtension.class)
 class FileServiceTest {
@@ -22,50 +28,57 @@ class FileServiceTest {
     @InjectMocks
     private FileService fileService;
 
-    // Имитация in-memory хранилища для теста
-    private final Map<String, byte[]> fileStorage = new HashMap<>();
+    private final String TEST_USER = "testuser";
+    private final Path storageRoot = Paths.get("./storage_mocks");
+
+    // Подменяем путь через рефлексию
+    private void setStoragePath(String path) throws Exception {
+        var field = FileService.class.getDeclaredField("rootPath");
+        field.setAccessible(true);
+        field.set(fileService, Paths.get(path).toAbsolutePath().normalize());
+    }
+
+    @BeforeEach
+    void setUp() throws Exception {
+        Files.createDirectories(storageRoot);
+        setStoragePath("./storage_mocks");
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        if (Files.exists(storageRoot)) {
+            Files.walk(storageRoot)
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(java.io.File::delete);
+        }
+    }
 
     @Test
-    void shouldRenameFileSuccessfully() {
+    void shouldRenameFileSuccessfully() throws IOException {
         // given
         String oldName = "old.txt";
         String newName = "new.txt";
-        String owner = "testuser";
-        byte[] content = "test data".getBytes();
+        Path userDir = storageRoot.resolve(TEST_USER);
+        Files.createDirectories(userDir);
+        Files.write(userDir.resolve(oldName), "data".getBytes());
 
         File file = new File();
         file.setFilename(oldName);
-        file.setOwnerLogin(owner);
-        file.setSize((long) content.length);
+        file.setOwnerLogin(TEST_USER);
+        file.setSize(4L);
 
-        // Подготовка моков
-        when(fileRepository.findByFilenameAndOwnerLogin(oldName, owner)).thenReturn(file);
-        when(fileRepository.findByFilenameAndOwnerLogin(newName, owner)).thenReturn(null);
-        when(fileRepository.save(any(File.class))).thenAnswer(invocation -> {
-            File saved = invocation.getArgument(0);
-            assertNotNull(saved);
-            return saved;
-        });
-
-        // Прямая имитация хранилища в сервисе (через рефлексию или через внедрение — здесь напрямую)
-        try {
-            var field = FileService.class.getDeclaredField("fileStorage");
-            field.setAccessible(true);
-            field.set(fileService, fileStorage);
-        } catch (Exception e) {
-            fail("Не удалось установить fileStorage: " + e.getMessage());
-        }
-
-        // Загружаем файл вручную перед тестом
-        fileStorage.put(oldName, content);
+        when(fileRepository.findByFilenameAndOwnerLogin(oldName, TEST_USER)).thenReturn(file);
+        when(fileRepository.findByFilenameAndOwnerLogin(newName, TEST_USER)).thenReturn(null);
+        when(fileRepository.save(any(File.class))).thenAnswer(i -> i.getArgument(0));
 
         // when
-        assertDoesNotThrow(() -> fileService.renameFile(oldName, newName, owner));
+        fileService.renameFile(oldName, newName, TEST_USER);
 
         // then
-        assertTrue(fileStorage.containsKey(newName));
-        assertFalse(fileStorage.containsKey(oldName));
-        assertEquals(newName, file.getFilename());
+        assertTrue(Files.exists(userDir.resolve(newName)));
+        assertFalse(Files.exists(userDir.resolve(oldName)));
+
         verify(fileRepository).save(argThat(f -> f.getFilename().equals(newName)));
     }
 
